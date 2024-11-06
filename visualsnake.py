@@ -45,7 +45,7 @@ class VisualSnake:
         self.dorayaki_img = pygame.image.load("dorayaki.png")
 
         self.doraemon_img = pygame.transform.scale(self.doraemon_img, (self.snake_size + 30, self.snake_size + 30))
-        self.dorayaki_img = pygame.transform.scale(self.dorayaki_img, (self.food_size + 30, self.food_size + 30 ))
+        self.dorayaki_img = pygame.transform.scale(self.dorayaki_img, (self.food_size , self.food_size  ))
 
         # starting location for the snake
         self.x1 = self.game_width / 2
@@ -85,10 +85,10 @@ class VisualSnake:
             x, y = self.index_to_coords(r, c)
             if i == len(self.snake_coords) - 1:
                 # head square color
-                # pygame.draw.rect(self.screen, self.color.blue, [x, y, self.snake_size, self.snake_size])
-                self.screen.blit(self.doraemon_img, (x, y))
+                pygame.draw.rect(self.screen, self.color.blue, [x, y, self.snake_size, self.snake_size])
+                # self.screen.blit(self.doraemon_img, (x, y))
             else:
-                pygame.draw.rect(self.screen, self.color.blue, [x, y, self.snake_size + 30, self.snake_size + 30])
+                pygame.draw.rect(self.screen, self.color.blue, [x, y, self.snake_size , self.snake_size ])
                 # self.screen.blit(self.doraemon_img, (x, y))
             
     def game_end_message(self):
