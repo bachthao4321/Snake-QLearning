@@ -27,12 +27,21 @@ class LearnSnake:
              
         self.c_change = 1
         self.r_change = 0
-          
+        
+        self.door1_r, self.door1_c = 2, 2  # Tọa độ cửa sổ 1
+        self.door2_r, self.door2_c = 35, 35  # Tọa độ cửa sổ 2
+
         self.food_r, self.food_c = self.generate_food()
         self.board[self.food_r][self.food_c] = 2
+
+        self.bomb_r, self.bomb_c = self.generate_bomb()
+        self.board[self.bomb_r][self.bomb_c] = 3
+
+        self.board[self.door1_r][self.door1_c] = 4  # Mã cho cửa sổ 1
+        self.board[self.door2_r][self.door2_c] = 4
+
         self.survived = 0
 
-        
         self.step()
     
     def get_state(self):
@@ -73,13 +82,38 @@ class LearnSnake:
         c = int(x // 10)
         return (r, c)
     
-    def generate_food(self):
-        food_c = int(round(random.randrange(0, self.screen_width - self.snake_size) / 10.0))
-        food_r = int(round(random.randrange(0, self.screen_height - self.snake_size) / 10.0))
-        if self.board[food_r][food_c] != 0:
-            food_r, food_c = self.generate_food()
-        return food_r, food_c
+    def check_door(self, r, c):
+        if (r == self.door1_r and c == self.door1_c):
+            return self.door2_r, self.door2_c  # Di chuyển đến cửa số 1
+        elif (r == self.door2_r and c == self.door2_c):
+            return self.door1_r, self.door1_c  # Di chuyển đến cửa số 2
+        return None
     
+    def is_near_door(self, r, c):
+    # Kiểm tra xem (r, c) có nằm trong khoảng gần cổng không (1 ô xung quanh)
+        return (abs(r - self.door1_r) <= 1 and abs(c - self.door1_c) <= 1) or \
+            (abs(r - self.door2_r) <= 1 and abs(c - self.door2_c) <= 1)
+
+
+    def generate_food(self):
+        while True:
+            food_c = random.randint(0, self.board.shape[1] - 1)  # Giới hạn cột
+            food_r = random.randint(0, self.board.shape[0] - 1)  # Giới hạn hàng
+            
+            # Kiểm tra xem có bị trùng với rắn, cửa hay gần cửa không
+            if self.board[food_r][food_c] == 0 and not self.is_near_door(food_r, food_c):
+                return food_r, food_c  # Trả về tọa độ hợp lệ
+    
+    def generate_bomb(self):
+        bomb_c = random.randint(0, self.board.shape[1] - 1)  # Giới hạn cột
+        bomb_r = random.randint(0, self.board.shape[0] - 1)  # Giới hạn hàng
+        if self.board[bomb_r][bomb_c] != 0:  # Đảm bảo không trùng với rắn hoặc thức ăn
+            return self.generate_bomb()  # Tạo lại nếu trùng
+        return bomb_r, bomb_c
+
+    def is_in_bomb_range(self, r, c):
+        return (self.bomb_r == r and self.bomb_c == c)
+
     def game_over(self):
         return self.game_close
         
@@ -134,12 +168,16 @@ class LearnSnake:
             if r == self.r1 and c == self.c1:
                 self.game_close = True
  
- 
+        new_pos = self.check_door(self.r1, self.c1)
+        if new_pos:
+            self.r1, self.c1 = new_pos  # Di chuyển đến cửa còn lại
         if self.c1 == self.food_c and self.r1 == self.food_r:
             self.food_r, self.food_c = self.generate_food()
             self.board[self.food_r][self.food_c] = 2
             self.snake_length += 1
             reward = 1 # food eaten, so +1 reward
+        if self.is_in_bomb_range(self.r1, self.c1):
+            self.game_close = True
         else:
             rh1, ch1 = self.snake_coords[-1]
             if len(self.snake_coords) == 1:

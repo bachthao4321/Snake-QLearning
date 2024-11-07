@@ -31,8 +31,8 @@ class VisualSnake:
         self.screen_height = self.game_height + self.padding
          
         self.snake_size = int(10 * self.scale)
-        self.food_size = int(10 * self.scale)
-        self.snake_speed = 40
+        self.food_size = int(20 * self.scale)
+        self.snake_speed = 30
                  
         self.snake_coords = []
         self.snake_length = 1
@@ -43,9 +43,15 @@ class VisualSnake:
      
         self.doraemon_img = pygame.image.load("doraemon.png")
         self.dorayaki_img = pygame.image.load("dorayaki.png")
+        self.bomb = pygame.image.load("boom.png")
+        self.window = pygame.image.load("window.png")
+        self.forest_background = pygame.image.load("forest.jpg")
 
-        self.doraemon_img = pygame.transform.scale(self.doraemon_img, (self.snake_size + 30, self.snake_size + 30))
-        self.dorayaki_img = pygame.transform.scale(self.dorayaki_img, (self.food_size , self.food_size  ))
+        self.forest_background = pygame.transform.scale(self.forest_background, (self.screen_width, self.screen_height))
+        self.doraemon_img = pygame.transform.scale(self.doraemon_img, (self.snake_size , self.snake_size ))
+        self.dorayaki_img = pygame.transform.scale(self.dorayaki_img, (self.food_size  , self.food_size ))
+        self.bomb = pygame.transform.scale(self.bomb, (self.food_size , self.food_size  ))
+        self.window = pygame.transform.scale(self.window, (self.food_size  , self.food_size ))
 
         # starting location for the snake
         self.x1 = self.game_width / 2
@@ -56,9 +62,19 @@ class VisualSnake:
              
         self.c_change = 1
         self.r_change = 0
-          
+        
+        self.door1_r, self.door1_c = 2, 2  # Tọa độ cửa sổ 1
+        self.door2_r, self.door2_c = 35, 35  # Tọa độ cửa sổ 2
+
         self.food_r, self.food_c = self.generate_food()
         self.board[self.food_r][self.food_c] = 2
+
+        self.bomb_r, self.bomb_c = self.generate_bomb()
+        self.board[self.bomb_r][self.bomb_c] = 3       
+
+        self.board[self.door1_r][self.door1_c] = 4  # Mã cho cửa sổ 1
+        self.board[self.door2_r][self.door2_c] = 4  # Mã cho cửa sổ 2 
+
         self.survived = 0
         pygame.init()
         self.color = Color()
@@ -78,18 +94,27 @@ class VisualSnake:
         if self.show_episode:
             value = self.font.render(f"Episode: {self.episode}", True, self.color.white)
             self.screen.blit(value, [10, 10])
-        
+
+    def draw_block(self, x, y, color):
+        """Vẽ một khối tại vị trí (x, y) với màu sắc chỉ định."""
+        pygame.draw.rect(self.screen, color, (x , y , self.snake_size, self.snake_size))
+
     def draw_snake(self):
         for i in range(len(self.snake_coords) - 1, -1, -1):
             r, c = self.snake_coords[i]
             x, y = self.index_to_coords(r, c)
             if i == len(self.snake_coords) - 1:
                 # head square color
-                pygame.draw.rect(self.screen, self.color.blue, [x, y, self.snake_size, self.snake_size])
+                pygame.draw.rect(self.screen, self.color.red, [x, y, self.snake_size, self.snake_size])
                 # self.screen.blit(self.doraemon_img, (x, y))
+                snake_color = self.color.red
+            elif self.snake_length > 10 :
+                snake_color = (255, 20 , 147)
             else:
                 pygame.draw.rect(self.screen, self.color.blue, [x, y, self.snake_size , self.snake_size ])
+                snake_color = self.color.blue
                 # self.screen.blit(self.doraemon_img, (x, y))
+            self.draw_block(x, y , snake_color)
             
     def game_end_message(self):
         mesg = self.font.render("Game over!", True, self.color.red)
@@ -136,14 +161,39 @@ class VisualSnake:
         c = int(x // self.snake_size)
         return (r, c)
     
-    # randomly place food
+    def is_near_door(self, r, c):
+    # Kiểm tra xem (r, c) có nằm trong khoảng gần cổng không (1 ô xung quanh)
+        return (abs(r - self.door1_r) <= 1 and abs(c - self.door1_c) <= 1) or \
+            (abs(r - self.door2_r) <= 1 and abs(c - self.door2_c) <= 1)
+
     def generate_food(self):
-        food_c = int(round(random.randrange(0, self.game_width - self.food_size) / self.food_size))
-        food_r = int(round(random.randrange(0, self.game_height - self.food_size) / self.food_size))
-        if self.board[food_r][food_c] != 0:
-            food_r, food_c = self.generate_food()
-        return food_r, food_c
+        while True:
+            food_c = random.randint(0, self.board.shape[1] - 1)  # Giới hạn cột
+            food_r = random.randint(0, self.board.shape[0] - 1)  # Giới hạn hàng
+            
+            # Kiểm tra xem có bị trùng với rắn, cửa hay gần cửa không
+            if self.board[food_r][food_c] == 0 and not self.is_near_door(food_r, food_c):
+                return food_r, food_c  # Trả về tọa độ hợp lệ    
+            
+
+    def generate_bomb(self):
+        bomb_c = random.randint(0, self.board.shape[1] - 1)  # Giới hạn cột
+        bomb_r = random.randint(0, self.board.shape[0] - 1)  # Giới hạn hàng
+    # Kiểm tra xem có bị trùng với rắn hoặc thức ăn không
+        if self.board[bomb_r][bomb_c] != 0:
+            return self.generate_bomb()  # Tạo lại nếu trùng
+        return bomb_r, bomb_c
     
+    def check_door(self, r, c):
+        if (r == self.door1_r and c == self.door1_c):
+            return self.door2_r, self.door2_c  # Di chuyển đến cửa số 2
+        elif (r == self.door2_r and c == self.door2_c):
+            return self.door1_r, self.door1_c  # Di chuyển đến cửa số 1
+        return None
+
+    def is_in_bomb_range(self, r, c):
+        return (self.bomb_r == r and self.bomb_c == c)
+
     def game_over(self):
         return self.game_close
         
@@ -182,7 +232,8 @@ class VisualSnake:
         self.c1 += self.c_change
         self.r1 += self.r_change
         
-        self.screen.fill(self.color.black)
+        self.screen.blit(self.forest_background, (0, 0))
+        # self.screen.fill(self.color.black)
         pygame.draw.rect(self.screen, (255, 255, 255), (0, self.padding, self.game_width, self.game_height), 1)
 
         
@@ -190,6 +241,18 @@ class VisualSnake:
         # pygame.draw.rect(self.screen, self.color.red, [food_x, food_y, self.food_size, self.food_size])
         self.screen.blit(self.dorayaki_img, (food_x, food_y))
         
+        # Vẽ cửa sổ 1
+        door1_x, door1_y = self.index_to_coords(self.door1_r, self.door1_c)
+        self.screen.blit(self.window, (door1_x, door1_y))
+
+        # Vẽ cửa sổ 2
+        door2_x, door2_y = self.index_to_coords(self.door2_r, self.door2_c)
+        self.screen.blit(self.window, (door2_x, door2_y))
+
+        # Vẽ quả bom
+        bomb_x, bomb_y = self.index_to_coords(self.bomb_r, self.bomb_c)
+        self.screen.blit(self.bomb, (bomb_x, bomb_y))
+
         self.snake_coords.append((self.r1, self.c1))
         
         if self.valid_index(self.r1, self.c1):
@@ -215,7 +278,17 @@ class VisualSnake:
             self.food_r, self.food_c = self.generate_food()
             self.board[self.food_r][self.food_c] = 2
             self.snake_length += 1
+            if self.snake_length % 10 == 0:
+                snake_color = (255, 20 ,147)
         self.survived += 1
+
+        if self.is_in_bomb_range(self.r1, self.c1):
+            self.game_close = True
+
+        new_pos = self.check_door(self.r1, self.c1)
+        if new_pos:
+            self.r1, self.c1 = new_pos  # Di chuyển đến cửa còn lại
+
     
     def run_game(self, episode):
         self.show_episode = True
